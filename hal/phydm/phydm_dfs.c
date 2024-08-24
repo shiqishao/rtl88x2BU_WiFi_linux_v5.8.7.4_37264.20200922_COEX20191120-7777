@@ -1447,8 +1447,6 @@ void phydm_dfs_histogram_radar_distinguish(
 	}
 	dfs->hist_idx++;
 	dfs->hist_long_idx++;
-	if (dfs->hist_long_idx == 300)
-		dfs->hist_long_idx = 0;
 	if (region_domain == 1 || region_domain == 3) {
 		if (dfs->hist_idx == 3)
 			dfs->hist_idx = 0;
@@ -1673,7 +1671,7 @@ void phydm_dfs_histogram_radar_distinguish(
 			dfs->pri_cond3 = 1;
 
 		/*@Cancel the condition that the abs between pri and pw*/
-			dfs->pri_cond4 = 1;
+		dfs->pri_cond4 = 1;
 
 		if (dfs->pri_hold_sum[5] <= dfs->pri_sum_g5_th)
 			dfs->pri_cond5 = 1;

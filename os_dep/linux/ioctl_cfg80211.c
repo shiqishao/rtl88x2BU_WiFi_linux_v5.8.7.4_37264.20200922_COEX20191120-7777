@@ -234,6 +234,11 @@ static u8 rtw_chbw_to_cfg80211_chan_def(struct wiphy *wiphy, struct cfg80211_cha
 	chdef->center_freq1 = cfreq;
 	chdef->center_freq2 = 0;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	chdef->edmg.bw_config = 0;
+	chdef->edmg.channels = 0;
+#endif
+
 	ret = _SUCCESS;
 
 exit:
@@ -429,7 +434,7 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 	u8 ret = _SUCCESS;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-	struct cfg80211_chan_def chdef;
+	struct cfg80211_chan_def chdef = {};
 
 	ret = rtw_chbw_to_cfg80211_chan_def(wiphy, &chdef, ch, bw, offset, ht);
 	if (ret != _SUCCESS)
@@ -437,7 +442,11 @@ u8 rtw_cfg80211_ch_switch_notify(_adapter *adapter, u8 ch, u8 bw, u8 offset,
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 	if (started) {
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0, false);
+	#else
 		cfg80211_ch_switch_started_notify(adapter->pnetdev, &chdef, 0);
+	#endif
 		goto exit;
 	}
 #endif
@@ -9878,6 +9887,10 @@ static void rtw_cfg80211_preinit_wiphy(_adapter *adapter, struct wiphy *wiphy)
 		;
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)) */
 #endif /* CONFIG_RTW_MESH */
+
+#ifdef CONFIG_NET_NS
+    wiphy->flags |= WIPHY_FLAG_NETNS_OK;
+#endif // NETNS
 
 #if (KERNEL_VERSION(3, 8, 0) <= LINUX_VERSION_CODE)
 	wiphy->features |= NL80211_FEATURE_SAE;

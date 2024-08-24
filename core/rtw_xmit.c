@@ -4570,8 +4570,9 @@ s32 rtw_monitor_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 	unsigned char	*pframe;
 	u8 dummybuf[32];
 	int len = skb->len, rtap_len;
-
-
+#ifdef CONFIG_MONITOR_MODE_XMIT
+    int consume;
+#endif  /* CONFIG_MONITOR_MODE_XMIT */
 	rtw_mstat_update(MSTAT_TYPE_SKB, MSTAT_ALLOC_SUCCESS, skb->truesize);
 
 #ifndef CONFIG_CUSTOMER_ALIBABA_GENERAL
@@ -4587,13 +4588,25 @@ s32 rtw_monitor_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 	if (unlikely(skb->len < rtap_len))
 		goto fail;
 
+#ifdef CONFIG_MONITOR_MODE_XMIT
+	len -= sizeof(struct ieee80211_radiotap_header);
+	rtap_len -= sizeof(struct ieee80211_radiotap_header);
+
+	while(rtap_len) {
+		consume = rtap_len > sizeof(dummybuf) ? sizeof(dummybuf) : rtap_len;
+		_rtw_pktfile_read(&pktfile, dummybuf, consume);
+		rtap_len -= consume;
+		len -= consume;
+	}
+#else /* CONFIG_MONITOR_MODE_XMIT */
 	if (rtap_len != 12) {
 		RTW_INFO("radiotap len (should be 14): %d\n", rtap_len);
 		goto fail;
 	}
 	_rtw_pktfile_read(&pktfile, dummybuf, rtap_len-sizeof(struct ieee80211_radiotap_header));
 	len = len - rtap_len;
-#endif
+#endif /* CONFIG_MONITOR_MODE_XMIT */
+#endif /* CONFIG_CUSTOMER_ALIBABA_GENERAL */
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (pmgntframe == NULL) {
 		rtw_udelay_os(500);
@@ -4633,6 +4646,9 @@ s32 rtw_monitor_xmit_entry(struct sk_buff *skb, struct net_device *ndev)
 	dump_mgntframe(padapter, pmgntframe);
 
 fail:
+#ifdef CONFIG_MONITOR_MODE_XMIT
+	rtw_endofpktfile(&pktfile);
+#endif /* CONFIG_MONITOR_MODE_XMIT */
 	rtw_skb_free(skb);
 	return 0;
 }
